@@ -1,0 +1,12 @@
+# Persistent Volume Claim required by our random service
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: random-generator-log
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: random-generator-log
+  resources:
+    requests:
+      storage: 5Gi

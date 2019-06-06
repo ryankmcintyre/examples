@@ -1,19 +1,22 @@
 == Predictable Demands
 
 ifndef::skipInstall[]
-For this example we recommend to use a Minikube installation described link:../../INSTALL.adoc#minikube[here].
-In order to play a bit with memory limits, we assume that you use 2GB memory for your Minikube VM (which is also the default).
-You can adapt the memory of the Minikube VM with `--memory`.
+For this example we recommend to use a Azure Kubernetes Service (AKS) cluster installation described link:https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough[here].
 endif::skipInstall[]
 
-To access the PersistentVolume used in this demo, let's mount a local directory into the Minikube VM that we later then use a PersistentVolume mounted into the Pod:
+To access the PersistentVolume used in this demo, let's create an Azure Files Storage Class with the name "azurefile" that we later then use a PersistentVolume mounted into the Pod:
 
 [source, bash]
 ----
-minikube start --mount --mount-string="$(pwd)/logs:/example"
+kubectl apply -f azure-file-sc.yaml
 ----
 
-This makes this directory available within the Minikube VM at the path `/example`.
+To allow the Azure platform to create the required storage resources, let's create a new ClusterRole and ClusterRoleBinding:
+
+[source, bash]
+----
+kubectl apply -f azure-pvc-roles.yaml
+----
 
 For this (and many other demos) we are using a simple https://github.com/k8spatterns/random-generator[random number service], which is a simple REST service exposing a random number and can be found also in the image `k8spatterns/random-generator:1.0` on Docker Hub
 
@@ -51,11 +54,11 @@ Events:
   Warning  FailedScheduling  44s (x2 over 44s)  default-scheduler  persistentvolumeclaim "random-generator-log" not found
 ----
 
-Let's now create the PersistentVolume and PVC:
+Let's now create the PersistentVolumeClaim:
 
 [source, bash]
 ----
-kubectl create -f https://k8spatterns.io/PredictableDemands/pv-and-pvc.yml
+kubectl create -f azure-pvc.yml
 ----
 
 When we create the PV and PVC we are already one step further:
@@ -75,7 +78,7 @@ Events:
   Warning  Failed            3s (x3 over 14s)     kubelet, minikube  Error: configmap "random-generator-config" not found
 ----
 
-The PVC could be bound, but not the ConfigMap is missing.
+The PVC could be bound, but now the ConfigMap is missing.
 
 Let's add this last missing piece:
 
@@ -110,11 +113,19 @@ curl -s http://localhost:8080 | jq .
   "id": "d88cc0e5-c7f2-4e98-8073-ed76151b5218",
   "version": "1.0"
 }
+----
 
-# Check whether the log has been written locally
-cat ./logs/random.log
+Check whether the log has been written to the Azure Files location. To do this, open the link:https://portal.azure.com[Azure portal] and find the management Resource Group for the AKS cluster, which will be a Resource Group with a name format of MC_<AKS Resource Group Name>_<AKS Cluster Name>_<Azure Region>.
 
-16:52:44.734,fe870020-fcab-42bf-b745-db65ec1cc51f,2137264413
+. Within that Resource Group, locate the storage account (there will only be one unless the cluster has been used for other tasks)
+. Open the storage account and click into the *Files* section
+. There will be a file share with a name starting with *"kubernetes-dynamic-pvc"* followed by a random GUID
+. Open the file share and you will see a file named *random.log*
+. Click on the file and download it to view the contents
+
+[source, bash]
+----
+17:58:54.303,521d0872-c60d-4049-9ba5-7aff095abd17,52302,-551447824
 ----
 
 Now that our hard requirements (ConfigMap, PVC) are fulfilled our the application runs smoothly.
@@ -128,8 +139,8 @@ kill %1
 # Delete the plain pod
 kubectl delete pod/random-generator
 
-# Delete PV & PVC
-kubectl delete -f https://k8spatterns.io/PredictableDemands/pv-and-pvc.yml
+# Delete PVC
+kubectl delete -f azure-pvc.yml
 ----
 
 === Resource limits
