@@ -22,8 +22,8 @@ random-generator-5856b5f774-54h6b   0/1     Running       0          5s
 random-generator-5856b5f774-54h6b   1/1     Running       0          38s
 ----
 
-The example apps expose to endpoints with which you can switch the state of the readiness and liveness checks.
-For simplicity reasons, we haven't installed a Service or Ingress (but of course, you are free to do so!)
+The example apps expose two endpoints with which you can switch the state of the readiness and liveness checks.
+For simplicity reasons, we haven't installed a Service or Ingress for this sample (if you do, or already have one set up from a previous example, replace *localhost* with the Public IP of your Service and skip the port-forward step.)
 
 Instead we are using a simple port-forwarding directly to the pod to trigger the toggles:
 
