@@ -15,11 +15,11 @@ Apply our simple example https://github.com/k8spatterns/random-generator[random-
 kubectl create -f node-selector.yml
 ----
 
-You will notice that this Pod does not get scheduled, because the `nodeSelector` can find any node with the label `disktype=ssd`:
+You will notice that this Pod does not get scheduled, because the `nodeSelector` can't find any node with the label `disktype=ssd`:
 
 [source, bash]
 ----
-kubectl describe pod random-generator
+kubectl describe pod node-selector
 ....
 Events:
   Type     Reason            Age              From               Message
@@ -27,11 +27,11 @@ Events:
   Warning  FailedScheduling  8s (x2 over 8s)  default-scheduler  0/1 nodes are available: 1 node(s) didnt match node selector.
 ----
 
-Let's change this:
+Let's change this (the below adds a label to the node in index 0 of the nodes collection):
 
 [source, bash]
 ----
-kubectl label node minikube disktype=ssd
+kubectl label node $(kubectl get nodes -o jsonpath="{$.items[0].metadata.name}") disktype=ssd
 
 kuebctl get pods
 NAME                READY   STATUS    RESTARTS   AGE
@@ -52,7 +52,7 @@ We can change this with
 
 [source, bash]
 ----
-kubectl label node minikube numberCores=4
+kubectl label node $(kubectl get nodes -o jsonpath="{$.items[0].metadata.name}") numberCores=4
 ----
 
 Does the Pod starts up now ? What if you choose 2 instead of 4 for the number of cores ?
@@ -81,9 +81,9 @@ That can be changed with
 
 [source, bash]
 ----
-kubectl label --overwrite node minikube security-zone=high
+kubectl label --overwrite node $(kubectl get nodes -o jsonpath="{$.items[0].metadata.name}") security-zone=high
 
-node/minikube labeled
+node/aks-nodepool1-{some ID}-0 labeled
 
 kubectl get pods
 NAME                READY   STATUS    RESTARTS   AGE
@@ -91,16 +91,18 @@ confidential-high   1/1     Running   0          9m39s
 pod-affinity        1/1     Running   0          9m39s
 ----
 
+(If the `pod-affinity` pod still does not start, check the placement of the `confidential-high` pod as it may be on a different node than where the security-zone label was applied.)
+
 === Taints and Tolerations
 
-For testing taints and tolerations, we first have to taint our Minikube node, so that by default no Pods are scheduled on it:
+For testing taints and tolerations, we first have to taint our AKS node(s), so that by default no Pods are scheduled on it. If you have more than one node in your AKS cluster, run the command below for each node changing the index value on `items`:
 
 [source, bash]
 ----
-kubectl taint nodes minikube node-role.kubernetes.io/master="":NoSchedule
+kubectl taint nodes $(kubectl get nodes -o jsonpath="{$.items[0].metadata.name}") node-role.kubernetes.io/master="":NoSchedule
 ----
 
-You can check that this taint is working by reapplying the previous `pod-affinity.ym` example and see that the `confiential-high` pod is not scheduled.
+You can check that this taint is working by reapplying the previous `pod-affinity.yml` example and see that the `confidential-high` pod is not scheduled.
 
 [source, bash]
 ----
